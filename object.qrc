@@ -1,0 +1,24 @@
+<RCC>
+    <qresource prefix="/">
+        <file>nanosuit/nanosuit.mtl</file>
+        <file>nanosuit/nanosuit.obj</file>
+        <file>nanosuit/nanosuit.blend</file>
+        <file>nanosuit/helmet_showroom_ddn.png</file>
+        <file>nanosuit/leg_showroom_ddn.png</file>
+        <file>nanosuit/hand_showroom_ddn.png</file>
+        <file>nanosuit/glass_ddn.png</file>
+        <file>nanosuit/body_showroom_ddn.png</file>
+        <file>nanosuit/arm_showroom_ddn.png</file>
+        <file>nanosuit/leg_showroom_spec.png</file>
+        <file>nanosuit/leg_dif.png</file>
+        <file>nanosuit/helmet_showroom_spec.png</file>
+        <file>nanosuit/helmet_diff.png</file>
+        <file>nanosuit/hand_showroom_spec.png</file>
+        <file>nanosuit/hand_dif.png</file>
+        <file>nanosuit/glass_dif.png</file>
+        <file>nanosuit/body_showroom_spec.png</file>
+        <file>nanosuit/body_dif.png</file>
+        <file>nanosuit/arm_showroom_spec.png</file>
+        <file>nanosuit/arm_dif.png</file>
+    </qresource>
+</RCC>
