@@ -183,12 +183,27 @@ void ModelLoader::createModel()
     QOpenGLVertexArrayObject *vao = m_model->getVertexArrayObject();
     QOpenGLFunctions f = QOpenGLFunctions(QOpenGLContext::currentContext());
 
+    vao->bind();
     vbo->bind();
     ebo->bind();
-    vao->bind();
 
-    ebo->allocate(&m_indices, sizeof(m_indices));
-    vbo->allocate(&m_vertices, sizeof(m_vertices));
+    ebo->allocate(sizeof(unsigned int)*(m_indices.size()));
+    unsigned int index;
+    for(size_t j=0;j < (size_t)m_indices.size();j++)
+    {
+        index = m_indices[j];
+        ebo->write(j*sizeof(unsigned int),&index, sizeof(unsigned int));
+
+    }
+
+    vbo->allocate(sizeof(float)*(m_vertices.size()));
+    float *data = (float *)vbo->map(QOpenGLBuffer::WriteOnly);
+
+    for(size_t i=0;i < (size_t)m_vertices.size();i++)
+    {
+        data[i] = m_vertices[i];
+    }
+    vbo->unmap();
 
     f.glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
     //f.glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));

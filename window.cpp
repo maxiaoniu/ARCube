@@ -32,7 +32,7 @@ void Window::initializeGL()
   m_projection.perspective(60.0f, width() / float(height()), 0.1f, 3000.0f);
 
   m_camera.setToIdentity();
-  m_camera.setTranslation(0,0,-5);
+  m_camera.setTranslation(0,0,-1);
 
   m_transform.setToIdentity();
 
@@ -52,7 +52,7 @@ void Window::initializeGL()
   m_model = new Model;
   ModelLoader mLoader(m_model);
 
-  mLoader.load("cube.obj");
+  mLoader.load("bunny.obj");
   mLoader.createModel();
 
 }

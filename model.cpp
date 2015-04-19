@@ -6,7 +6,7 @@
 #include <QString>
 Model::Model()
 {
-    m_mode = GL_LINES;
+    m_mode = GL_TRIANGLES;
     m_oritation = GL_CCW;
 }
 
@@ -28,8 +28,8 @@ void Model::createBuffer(QOpenGLBuffer::UsagePattern hint)
     m_vbo->setUsagePattern(hint);
 
     m_ebo = new QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
-    m_vbo->create();
-    m_vbo->setUsagePattern(hint);
+    m_ebo->create();
+    m_ebo->setUsagePattern(hint);
 
 }
 
@@ -77,10 +77,12 @@ void Model::draw()
     m_vao->bind();
 
     QOpenGLFunctions f(QOpenGLContext::currentContext());
+    uint data[10];
+    m_ebo->read(0,&data,20);
 
     f.glFrontFace(m_oritation);
     //f.glDrawArrays(m_mode, 0, m_count);
-    glDrawElements(m_mode, m_count, GL_UNSIGNED_INT, 0);
+    f.glDrawElements(m_mode, m_count, GL_UNSIGNED_INT, 0);
     m_vao->release();
     m_vbo->release();
     m_ebo->release();
