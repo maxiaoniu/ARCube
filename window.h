@@ -4,14 +4,17 @@
 #include <QOpenGLWindow>
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
+#include <QOpenGLTexture>
 #include <QOpenGLVertexArrayObject>
+#include "backgroud.h"
 #include "transform.h"
 #include "camera.h"
 #include <QMatrix4x4>
 #include "model.h"
 #include <QOpenGLShaderProgram>
 #include <QOpenGLShader>
-
+#include <QTimer>
+class CvCapture;
 class Window : public QOpenGLWindow,
                protected QOpenGLFunctions
 {
@@ -40,6 +43,15 @@ private:
   Camera m_camera;
   Transform m_transform;
   Model *m_model;
+
+  //background
+  Backgroud *m_back;
+  QOpenGLTexture *m_backTexture;
+  QOpenGLShaderProgram *m_backprogram;
+  int u_worldToCameraFloor;
+  int u_cameraToViewFloor;
+  QTimer *m_timer;
+  CvCapture* capture;
 };
 
 #endif // WINDOW_H

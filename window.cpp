@@ -2,8 +2,19 @@
 #include "modelloader.h"
 #include <QDebug>
 #include <QString>
+
+#include <opencv2/objdetect/objdetect.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+using namespace cv;
 Window::Window()
 {
+    m_timer = new QTimer(this);
+    m_timer->setInterval(30);
+    connect(m_timer, SIGNAL(timeout()), this, SLOT(update()));
+    m_timer->start();
+
+    capture = cvCaptureFromCAM( 0 );
 
 
 }
@@ -29,8 +40,8 @@ void Window::initializeGL()
 
 
   m_projection.setToIdentity();
-  m_projection.perspective(60.0f, width() / float(height()), 0.1f, 3000.0f);
-
+  //m_projection.perspective(60.0f, width() / float(height()), 0.1f, 3000.0f);
+  m_projection.ortho(0, 1280, 0, 720, -1, 4);
   m_camera.setToIdentity();
   m_camera.setTranslation(0,0,-1);
 
@@ -55,6 +66,26 @@ void Window::initializeGL()
   mLoader.load("bunny.obj");
   mLoader.createModel();
 
+  //draw background
+  m_backTexture = new QOpenGLTexture(QImage(":/shader/back.png"),QOpenGLTexture::DontGenerateMipMaps);
+  m_backTexture->setWrapMode(QOpenGLTexture::Repeat);
+  m_backTexture->setMinificationFilter(QOpenGLTexture::LinearMipMapLinear);
+  m_backTexture->setMagnificationFilter(QOpenGLTexture::Linear);
+  //m_backTexture->allocateStorage();
+  m_backprogram = new QOpenGLShaderProgram();
+  m_backprogram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shader/backgroud.vert");
+  m_backprogram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shader/backgroud.frag");
+
+  m_backprogram->link();
+  m_backprogram->bind();
+
+  u_worldToCameraFloor = m_backprogram->uniformLocation("worldToCamera");
+  u_cameraToViewFloor  = m_backprogram->uniformLocation("cameraToView");
+
+  m_backprogram->release();
+  m_back = new Backgroud();
+  m_back->create();
+
 }
 
 void Window::resizeGL(int width, int height)
@@ -77,6 +108,23 @@ void Window::paintGL()
 
    m_model->draw();
    m_program->release();
+
+
+   Mat opencv_image = cvQueryFrame(capture);
+   Mat dest;
+   cvtColor(opencv_image, dest,CV_BGR2RGB);
+   QImage image((uchar*)dest.data, dest.cols, dest.rows,QImage::Format_RGB888);
+
+   m_backTexture->bind(0);
+   m_backTexture->setData(image,QOpenGLTexture::DontGenerateMipMaps);
+   m_backprogram->bind();
+   m_backprogram->setUniformValue("ourTexture", 0);
+   m_backprogram->setUniformValue(u_worldToCameraFloor, m_camera.getMatrix());
+   m_backprogram->setUniformValue(u_cameraToViewFloor, m_projection);
+   if(m_back!= NULL)
+        m_back->draw();
+   m_backprogram->release();
+   m_backTexture->release();
 }
 
 void Window::teardownGL()

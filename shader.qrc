@@ -2,5 +2,8 @@
     <qresource prefix="/">
         <file>shader/simple.vert</file>
         <file>shader/simple.frag</file>
+        <file>shader/backgroud.frag</file>
+        <file>shader/backgroud.vert</file>
+        <file>shader/back.png</file>
     </qresource>
 </RCC>

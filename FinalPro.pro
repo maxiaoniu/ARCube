@@ -19,14 +19,16 @@ SOURCES += main.cpp \
     modelloader.cpp \
     model.cpp \
     camera.cpp \
-    transform.cpp
+    transform.cpp \
+    backgroud.cpp
 
 HEADERS += \
     window.h \
     modelloader.h \
     model.h \
     camera.h \
-    transform.h
+    transform.h \
+    backgroud.h
 
 
 
@@ -37,3 +39,10 @@ DEPENDPATH += $$PWD/../../../../../../usr/local/include/assimp
 
 RESOURCES += \
     shader.qrc
+
+DISTFILES +=
+
+macx: LIBS += -L$$PWD/../../../../../../usr/local/Cellar/opencv/2.4.10.1/lib/ -lopencv_core -lopencv_imgproc -lopencv_highgui
+
+INCLUDEPATH += $$PWD/../../../../../../usr/local/Cellar/opencv/2.4.10.1/include
+DEPENDPATH += $$PWD/../../../../../../usr/local/Cellar/opencv/2.4.10.1/include
