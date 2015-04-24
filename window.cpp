@@ -33,20 +33,22 @@ void Window::initializeGL()
 {
   // Initialize OpenGL Backend
   initializeOpenGLFunctions();
-  printContextInformation();
+//  printContextInformation();
 
   // Set global information
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+  glEnable(GL_DEPTH_TEST);
 
 
   m_projection.setToIdentity();
-  //m_projection.perspective(60.0f, width() / float(height()), 0.1f, 3000.0f);
-  m_projection.ortho(0, 1280, 0, 720, -1, 4);
+  m_projection.perspective(60.0f, width() / float(height()), 0.1f, 3000.0f);
+  m_backgroundProjection.setToIdentity();
+  m_backgroundProjection.ortho(0, 1280, 0, 720, 19, 21);
   m_camera.setToIdentity();
-  m_camera.setTranslation(0,0,-1);
+  m_camera.translate(0,0,24);
 
   m_transform.setToIdentity();
-
+  m_transform.translate(QVector3D(0,0,-25));
   m_program = new QOpenGLShaderProgram();
   m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shader/simple.vert");
   m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shader/simple.frag");
@@ -98,16 +100,9 @@ void Window::resizeGL(int width, int height)
 void Window::paintGL()
 {
   // Clear
-  glClear(GL_COLOR_BUFFER_BIT);
+   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-   m_program->bind();
 
-   m_program->setUniformValue(u_worldToCamera, m_camera.getMatrix());
-   m_program->setUniformValue(u_cameraToView, m_projection);
-   m_program->setUniformValue(u_modelToWorld, m_transform.getMatrix());
-
-   m_model->draw();
-   m_program->release();
 
 
    Mat opencv_image = cvQueryFrame(capture);
@@ -120,11 +115,20 @@ void Window::paintGL()
    m_backprogram->bind();
    m_backprogram->setUniformValue("ourTexture", 0);
    m_backprogram->setUniformValue(u_worldToCameraFloor, m_camera.getMatrix());
-   m_backprogram->setUniformValue(u_cameraToViewFloor, m_projection);
+   m_backprogram->setUniformValue(u_cameraToViewFloor, m_backgroundProjection);
    if(m_back!= NULL)
-        m_back->draw();
+   {
+       m_back->draw();
+   }
    m_backprogram->release();
    m_backTexture->release();
+
+   m_program->bind();
+   m_program->setUniformValue(u_worldToCamera, m_camera.getMatrix());
+   m_program->setUniformValue(u_cameraToView, m_projection);
+   m_program->setUniformValue(u_modelToWorld, m_transform.getMatrix());
+   m_model->draw();
+   m_program->release();
 }
 
 void Window::teardownGL()

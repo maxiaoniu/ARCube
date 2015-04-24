@@ -9,6 +9,6 @@ uniform mat4 cameraToView;
 
 void main()
 {
-    gl_Position = cameraToView * worldToCamera * vec4(position, 1.0f);
+    gl_Position = cameraToView * vec4(position, 1.0f);
     TexCoord = texCoord;
 }

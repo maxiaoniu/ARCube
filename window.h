@@ -40,6 +40,7 @@ private:
   int u_cameraToView;
 
   QMatrix4x4 m_projection;
+  QMatrix4x4 m_backgroundProjection;
   Camera m_camera;
   Transform m_transform;
   Model *m_model;
