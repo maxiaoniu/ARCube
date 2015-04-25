@@ -196,20 +196,26 @@ void ModelLoader::createModel()
 
     }
 
-    vbo->allocate(sizeof(float)*(m_vertices.size()));
+    vbo->allocate(sizeof(float)*(m_vertices.size()*2));
     float *data = (float *)vbo->map(QOpenGLBuffer::WriteOnly);
 
-    for(size_t i=0;i < (size_t)m_vertices.size();i++)
+    for(size_t i=0;i < (size_t)(m_vertices.size()/3);i++)
     {
-        data[i] = m_vertices[i];
+        data[6*i]   = m_vertices[3*i];
+        data[6*i+1] = m_vertices[3*i+1];
+        data[6*i+2] = m_vertices[3*i+2];
+        data[6*i+3] = m_normals[3*i];
+        data[6*i+4] = m_normals[3*i+1];
+        data[6*i+5] = m_normals[3*i+2];
+
     }
     vbo->unmap();
 
-    f.glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
-    //f.glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
+    f.glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)0);
+    f.glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
 
     f.glEnableVertexAttribArray(0);
-    //f.glEnableVertexAttribArray(1);
+    f.glEnableVertexAttribArray(1);
 
     vao->release();
     vbo->release();

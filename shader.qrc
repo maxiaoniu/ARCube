@@ -5,5 +5,11 @@
         <file>shader/backgroud.frag</file>
         <file>shader/backgroud.vert</file>
         <file>shader/back.png</file>
+        <file>shader/cubemap_negx.jpg</file>
+        <file>shader/cubemap_negy.jpg</file>
+        <file>shader/cubemap_negz.jpg</file>
+        <file>shader/cubemap_posx.jpg</file>
+        <file>shader/cubemap_posy.jpg</file>
+        <file>shader/cubemap_posz.jpg</file>
     </qresource>
 </RCC>

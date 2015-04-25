@@ -15,6 +15,8 @@
 #include <QOpenGLShader>
 #include <QTimer>
 class CvCapture;
+class GLTexture2D;
+class GLTextureCube;
 class Window : public QOpenGLWindow,
                protected QOpenGLFunctions
 {
@@ -47,7 +49,8 @@ private:
 
   //background
   Backgroud *m_back;
-  QOpenGLTexture *m_backTexture;
+  GLTexture2D *m_backTexture;
+  GLTextureCube *m_environment;
   QOpenGLShaderProgram *m_backprogram;
   int u_worldToCameraFloor;
   int u_cameraToViewFloor;

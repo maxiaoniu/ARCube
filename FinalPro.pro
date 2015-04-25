@@ -20,7 +20,8 @@ SOURCES += main.cpp \
     model.cpp \
     camera.cpp \
     transform.cpp \
-    backgroud.cpp
+    backgroud.cpp \
+    glbuffers.cpp
 
 HEADERS += \
     window.h \
@@ -28,7 +29,8 @@ HEADERS += \
     model.h \
     camera.h \
     transform.h \
-    backgroud.h
+    backgroud.h \
+    glbuffers.h
 
 
 
