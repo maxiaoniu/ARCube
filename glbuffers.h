@@ -34,8 +34,11 @@
 #ifndef GLBUFFERS_H
 #define GLBUFFERS_H
 
-#include <QOpenGLWindow>
-#include <QOpenGLFunctions>
+//#include <GL/glew.h>
+//#include "glextensions.h"
+
+#include <QtWidgets>
+#include <QtOpenGL>
 
 #define BUFFER_OFFSET(i) ((char*)0 + (i))
 #define SIZE_OF_MEMBER(cls, member) sizeof(static_cast<cls *>(0)->member)
@@ -46,6 +49,8 @@ if (m_failed || !(assertion)) {                                                 
     m_failed = true;                                                                        \
     returnStatement;                                                                        \
 }
+
+void qgluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar);
 
 QT_BEGIN_NAMESPACE
 class QMatrix4x4;
@@ -59,9 +64,8 @@ public:
     virtual void bind() = 0;
     virtual void unbind() = 0;
     virtual bool failed() const {return m_failed;}
-    GLuint m_texture;
 protected:
-
+    GLuint m_texture;
     bool m_failed;
 };
 
@@ -133,5 +137,44 @@ private:
     GLFrameBufferObject m_fbo;
 };
 
+struct VertexDescription
+{
+    enum
+    {
+        Null = 0, // Terminates a VertexDescription array
+        Position,
+        TexCoord,
+        Normal,
+        Color,
+    };
+    int field; // Position, TexCoord, Normal, Color
+    int type; // GL_FLOAT, GL_UNSIGNED_BYTE
+    int count; // number of elements
+    int offset; // field's offset into vertex struct
+    int index; // 0 (unused at the moment)
+};
+
+// Implementation of interleaved buffers.
+// 'T' is a struct which must include a null-terminated static array
+// 'VertexDescription* description'.
+// Example:
+/*
+struct Vertex
+{
+    GLfloat position[3];
+    GLfloat texCoord[2];
+    GLfloat normal[3];
+    GLbyte color[4];
+    static VertexDescription description[];
+};
+
+VertexDescription Vertex::description[] = {
+    {VertexDescription::Position, GL_FLOAT, SIZE_OF_MEMBER(Vertex, position) / sizeof(GLfloat), offsetof(Vertex, position), 0},
+    {VertexDescription::TexCoord, GL_FLOAT, SIZE_OF_MEMBER(Vertex, texCoord) / sizeof(GLfloat), offsetof(Vertex, texCoord), 0},
+    {VertexDescription::Normal, GL_FLOAT, SIZE_OF_MEMBER(Vertex, normal) / sizeof(GLfloat), offsetof(Vertex, normal), 0},
+    {VertexDescription::Color, GL_BYTE, SIZE_OF_MEMBER(Vertex, color) / sizeof(GLbyte), offsetof(Vertex, color), 0},
+    {VertexDescription::Null, 0, 0, 0, 0},
+};
+*/\
 
 #endif

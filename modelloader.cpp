@@ -223,3 +223,117 @@ void ModelLoader::createModel()
     m_model->setDrawArrays(m_indices.size());
 
 }
+
+
+void ModelLoader::createRoundedBox(float r, float scale, int n)
+{
+    int vidx = 0, iidx = 0;
+    int vertexCountPerCorner = (n + 2) * (n + 3) / 2;
+    int vertexNum = (n+2)*(n+3)*4;
+    int indexNum = (n+1)*(n+1)*24+36+72*(n+1);
+
+    m_model->createBuffer(QOpenGLBuffer::StaticDraw);
+    m_model->createVertexArrayObjct();
+    QOpenGLBuffer *vbo = m_model->getVBO();
+    QOpenGLBuffer *ebo = m_model->getEBO();
+    QOpenGLVertexArrayObject *vao = m_model->getVertexArrayObject();
+    QOpenGLFunctions f = QOpenGLFunctions(QOpenGLContext::currentContext());
+
+    vao->bind();
+    vbo->bind();
+    ebo->bind();
+
+    vbo->allocate(sizeof(P3T2N3Vertex) * vertexNum);
+    P3T2N3Vertex *vp = (P3T2N3Vertex *)vbo->map(QOpenGLBuffer::WriteOnly);
+    ebo->allocate(sizeof(unsigned int) * indexNum);
+    unsigned int *ip = (unsigned int *)ebo->map(QOpenGLBuffer::WriteOnly);
+
+    for (int corner = 0; corner < 8; ++corner) {
+        QVector3D centre(corner & 1 ? 1.0f : -1.0f,
+                corner & 2 ? 1.0f : -1.0f,
+                corner & 4 ? 1.0f : -1.0f);
+        int winding = (corner & 1) ^ ((corner >> 1) & 1) ^ (corner >> 2);
+        int offsX = ((corner ^ 1) - corner) * vertexCountPerCorner;
+        int offsY = ((corner ^ 2) - corner) * vertexCountPerCorner;
+        int offsZ = ((corner ^ 4) - corner) * vertexCountPerCorner;
+
+        // Face polygons
+        if (winding) {
+            ip[iidx++] = vidx;
+            ip[iidx++] = vidx + offsX;
+            ip[iidx++] = vidx + offsY;
+
+            ip[iidx++] = vidx + vertexCountPerCorner - n - 2;
+            ip[iidx++] = vidx + vertexCountPerCorner - n - 2 + offsY;
+            ip[iidx++] = vidx + vertexCountPerCorner - n - 2 + offsZ;
+
+            ip[iidx++] = vidx + vertexCountPerCorner - 1;
+            ip[iidx++] = vidx + vertexCountPerCorner - 1 + offsZ;
+            ip[iidx++] = vidx + vertexCountPerCorner - 1 + offsX;
+        }
+
+        for (int i = 0; i < n + 2; ++i) {
+
+            // Edge polygons
+            if (winding && i < n + 1) {
+                ip[iidx++] = vidx + i + 1;
+                ip[iidx++] = vidx;
+                ip[iidx++] = vidx + offsY + i + 1;
+                ip[iidx++] = vidx + offsY;
+                ip[iidx++] = vidx + offsY + i + 1;
+                ip[iidx++] = vidx;
+
+                ip[iidx++] = vidx + i;
+                ip[iidx++] = vidx + 2 * i + 2;
+                ip[iidx++] = vidx + i + offsX;
+                ip[iidx++] = vidx + 2 * i + offsX + 2;
+                ip[iidx++] = vidx + i + offsX;
+                ip[iidx++] = vidx + 2 * i + 2;
+
+                ip[iidx++] = (corner + 1) * vertexCountPerCorner - 1 - i;
+                ip[iidx++] = (corner + 1) * vertexCountPerCorner - 2 - i;
+                ip[iidx++] = (corner + 1) * vertexCountPerCorner - 1 - i + offsZ;
+                ip[iidx++] = (corner + 1) * vertexCountPerCorner - 2 - i + offsZ;
+                ip[iidx++] = (corner + 1) * vertexCountPerCorner - 1 - i + offsZ;
+                ip[iidx++] = (corner + 1) * vertexCountPerCorner - 2 - i;
+            }
+
+            for (int j = 0; j <= i; ++j) {
+                QVector3D normal = QVector3D(i - j, j, n + 1 - i).normalized();
+                QVector3D offset(0.5f - r, 0.5f - r, 0.5f - r);
+                QVector3D pos = centre * (offset + r * normal);
+                vp[vidx].position = scale * pos;
+                vp[vidx].normal = centre * normal;
+                //vp[vidx].texCoord = QVector2D(pos.x() + 0.5f, pos.y() + 0.5f);
+
+                // Corner polygons
+                if (i < n + 1) {
+                    ip[iidx++] = vidx;
+                    ip[iidx++] = vidx + i + 2 - winding;
+                    ip[iidx++] = vidx + i + 1 + winding;
+                }
+                if (i < n) {
+                    ip[iidx++] = vidx + i + 1 + winding;
+                    ip[iidx++] = vidx + i + 2 - winding;
+                    ip[iidx++] = vidx + 2 * i + 4;
+                }
+
+                ++vidx;
+            }
+        }
+
+    }
+
+    vbo->unmap();
+
+    f.glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)0);
+    f.glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
+
+    f.glEnableVertexAttribArray(0);
+    f.glEnableVertexAttribArray(1);
+
+    vao->release();
+    vbo->release();
+    ebo->release();
+    m_model->setDrawArrays(indexNum);
+}

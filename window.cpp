@@ -2,16 +2,19 @@
 #include "modelloader.h"
 #include <QDebug>
 #include <QString>
-
+#include <QVector4D>
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "glbuffers.h"
+
+
 using namespace cv;
 Window::Window()
 {
     m_timer = new QTimer(this);
-    m_timer->setInterval(30);
+    m_timer->setInterval(40);
     connect(m_timer, SIGNAL(timeout()), this, SLOT(update()));
     m_timer->start();
 
@@ -25,6 +28,172 @@ Window::~Window()
   makeCurrent();
   teardownGL();
 }
+
+/*******************************************************************************
+ * Transform Calculate
+ ******************************************************************************/
+void Window::generateProjectionMatrix(float height, float width, float far, float near)
+{
+    //camera internal matrix just for my computer
+    float Fx = 1.20507632e+03;
+    float Fy = 1.22298265e+03;
+    float Cx = 6.24119800e+02;
+    float Cy = 4.22267512e+02;
+
+    QVector4D col01 = QVector4D(2*Fx/width,0,0,0);
+    QVector4D col02 = QVector4D(0,2*Fy/height,0,0);
+    QVector4D col03 = QVector4D(1-2*Cx/width,
+                                2*Cy/height-1,
+                                -(far+near)/(far-near),
+                                -1);
+    QVector4D col04 = QVector4D(0,0,-(2*far*near)/(far-near),0);
+
+    m_projection.setColumn(0,col01);
+    m_projection.setColumn(1,col02);
+    m_projection.setColumn(2,col03);
+    m_projection.setColumn(3,col04);
+    qDebug()<<m_projection;
+
+}
+void Window::generateModelViewMatrix()
+{
+    typedef double precision;
+    double r[3][1]={0.025563, 0.21087334,-3.12837409};
+    double t[3][1]={11.29395024, 158.78401244,287.38354452};
+    Mat rvec(3,1,CV_64FC1, r);
+    Mat tvec(3,1,CV_64FC1, t);
+
+    Mat rotation;
+    Rodrigues(rvec, rotation);
+    double offsetA[3][1] = {9,6,6};
+    Mat offset(3, 1, CV_64FC1, offsetA);
+    Mat translation;
+    translation = tvec+ rotation*offset;
+    Mat modelview(4,4,CV_64FC1);
+    modelview.at<precision>(3,0) = 0;
+    modelview.at<precision>(0,0) = rotation.at<precision>(0,0);
+    modelview.at<precision>(1,0) = rotation.at<precision>(1,0);
+    modelview.at<precision>(2,0) = rotation.at<precision>(2,0);
+    modelview.at<precision>(3,0) = 0;
+
+    modelview.at<precision>(0,1) = rotation.at<precision>(0,1);
+    modelview.at<precision>(1,1) = rotation.at<precision>(1,1);
+    modelview.at<precision>(2,1) = rotation.at<precision>(2,1);
+    modelview.at<precision>(3,1) = 0;
+
+    modelview.at<precision>(0,2) = rotation.at<precision>(0,2);
+    modelview.at<precision>(1,2) = rotation.at<precision>(1,2);
+    modelview.at<precision>(2,2) = rotation.at<precision>(2,2);
+    modelview.at<precision>(3,2) = 0;
+
+    modelview.at<precision>(0,3) = translation.at<precision>(0,0);
+    modelview.at<precision>(1,3) = translation.at<precision>(1,0);
+    modelview.at<precision>(2,3) = translation.at<precision>(2,0);
+    modelview.at<precision>(3,3) = 1;
+
+    // This matrix corresponds to the change of coordinate systems.
+    static double changeCoordArray[4][4] = {{1, 0, 0, 0}, {0, -1, 0, 0}, {0, 0, -1, 0}, {0, 0, 0, 1}};
+    static Mat changeCoord(4, 4, CV_64FC1, changeCoordArray);
+
+    modelview = changeCoord*modelview;
+
+    QVector4D col01 = QVector4D(modelview.at<precision>(0,0),
+                                modelview.at<precision>(1,0),
+                                modelview.at<precision>(2,0),
+                                modelview.at<precision>(3,0)
+                                );
+    QVector4D col02 = QVector4D(modelview.at<precision>(0,1),
+                                modelview.at<precision>(1,1),
+                                modelview.at<precision>(2,1),
+                                modelview.at<precision>(3,1)
+                                );
+    QVector4D col03 = QVector4D(modelview.at<precision>(0,2),
+                                modelview.at<precision>(1,2),
+                                modelview.at<precision>(2,2),
+                                modelview.at<precision>(3,2)
+                                );
+    QVector4D col04 = QVector4D(modelview.at<precision>(0,3),
+                                modelview.at<precision>(1,3),
+                                modelview.at<precision>(2,3),
+                                modelview.at<precision>(3,3)
+                                );
+    m_modelview.setColumn(0,col01);
+    m_modelview.setColumn(1,col02);
+    m_modelview.setColumn(2,col03);
+    m_modelview.setColumn(3,col04);
+    qDebug()<<m_modelview;
+
+}
+
+//calcualte the screen space bounding box
+void Window::calcuSSBB(const QMatrix4x4 &m, const QMatrix4x4 &v,const QMatrix4x4 &p)
+{
+    QVector4D res;
+    QMatrix4x4 mvp = p*v*m;
+    QList<float> xList;
+    QList<float> yList;
+
+    //FTR
+    QVector4D ftr =QVector4D(21,21,21,1);
+    res = mvp*ftr;
+    xList.append((res.x()/res.z()+1)*0.5*1279);
+    yList.append((1-(res.y()/res.z()+1)*0.5)*719);
+    //FTL
+    QVector4D ftl =QVector4D(-21,21,21,1);
+    res = mvp*ftl;
+    xList.append((res.x()/res.z()+1)*0.5*1279);
+    yList.append((1-(res.y()/res.z()+1)*0.5)*719);
+    //FBR
+    QVector4D fbr =QVector4D(21,-21,21,1);
+    res = mvp*fbr;
+    xList.append((res.x()/res.z()+1)*0.5*1279);
+    yList.append((1-(res.y()/res.z()+1)*0.5)*719);
+    //FBL
+    QVector4D fbl =QVector4D(-21,-21,21,1);
+    res = mvp*fbl;
+    xList.append((res.x()/res.z()+1)*0.5*1279);
+    yList.append((1-(res.y()/res.z()+1)*0.5)*719);
+
+    //BTR
+    QVector4D btr =QVector4D(21,21,-21,1);
+    res = mvp*btr;
+    xList.append((res.x()/res.z()+1)*0.5*1279);
+    yList.append((1-(res.y()/res.z()+1)*0.5)*719);
+    //BTL
+    QVector4D btl =QVector4D(-21,21,-21,1);
+    res = mvp*btl;
+    xList.append((res.x()/res.z()+1)*0.5*1279);
+    yList.append((1-(res.y()/res.z()+1)*0.5)*719);
+    //BBR
+    QVector4D bbr =QVector4D(21,-21,-21,1);
+    res = mvp*bbr;
+    xList.append((res.x()/res.z()+1)*0.5*1279);
+    yList.append((1-(res.y()/res.z()+1)*0.5)*719);
+    //BBL
+    QVector4D bbl =QVector4D(-21,-21,-21,1);
+    res = mvp*bbl;
+    xList.append((res.x()/res.z()+1)*0.5*1279);
+    yList.append((1-(res.y()/res.z()+1)*0.5)*719);
+
+    qSort(xList);
+    qSort(yList);
+
+    m_ssbb[0]=xList.first();
+    m_ssbb[2]=xList.last();
+    m_ssbb[1]=yList.first();
+    m_ssbb[3]=yList.last();
+
+    //qDebug() <<"x: "<<xList.first()<<" "<< xList.last();
+    //qDebug() <<"y: "<<yList.first()<<" "<< yList.last();
+
+
+}
+//calculate the uv of cube texture
+//void Window::createCubeUV()
+//{
+
+
+//}
 
 /*******************************************************************************
  * OpenGL Events
@@ -43,15 +212,19 @@ void Window::initializeGL()
 
 
   m_projection.setToIdentity();
-  m_projection.perspective(60.0f, width() / float(height()), 0.1f, 3000.0f);
+  //m_projection.perspective(60.0f, width() / float(height()), 0.1f, 3000.0f);
+  generateProjectionMatrix(720.0,1280.0,3000.0,1.0);
+  m_modelview.setToIdentity();
+  generateModelViewMatrix();
   m_backgroundProjection.setToIdentity();
   m_backgroundProjection.ortho(0, 1280, 0, 720, 19, 21);
   m_camera.setToIdentity();
   m_camera.translate(0,0,-5);
 
   m_transform.setToIdentity();
-  //m_transform.rotate(45,QVector3D(0,1,0));
-  m_transform.scale(2);
+  //m_transform.rotate(20,QVector3D(0,1,0));
+  m_transform.translate(QVector3D(0,152,200));
+
 
   m_program = new QOpenGLShaderProgram();
   m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shader/simple.vert");
@@ -70,7 +243,7 @@ void Window::initializeGL()
   ModelLoader mLoader(m_model);
 
   mLoader.load("cube.obj");
-  mLoader.createModel();
+  mLoader.createRoundedBox(0.25,40,10);
 
   //draw background
   //m_backTexture = new QOpenGLTexture(QImage(":/shader/back.png"),QOpenGLTexture::DontGenerateMipMaps);
@@ -95,7 +268,7 @@ void Window::initializeGL()
   //enviroment mapping
   QStringList list;
   list << ":/shader/cubemap_posx.jpg" << ":/shader/cubemap_negx.jpg" << ":/shader/cubemap_posy.jpg"
-       << ":/shader/cubemap_negy.jpg" << ":/shader/cubemap_posz.jpg" << ":/shader/cubemap_negz.jpg";
+       << ":/shader/cubemap_negy.jpg" << ":/shader/cubemap_posz.jpg" << ":/shader/back.png";
   m_environment = new GLTextureCube(list, 1024);
 
 }
@@ -111,7 +284,23 @@ void Window::paintGL()
 {
   // Clear
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+   //LeapMotion
+   if( m_controller.isConnected()) //controller is a Controller object
+   {
+       Frame frame = m_controller.frame(); //The latest frame
+       Leap::HandList hands = frame.hands();
+       Hand firstHand = hands[0];
+       Leap::Vector handCenter = firstHand.palmPosition();
+       m_transform.setTranslation(QVector3D(-handCenter.x,handCenter.y,handCenter.z));
+       //float yaw = firstHand.direction().yaw();
+       //m_transform.setRotation(-(yaw/3.14)*180,0,-1,0);
+       //float roll = firstHand.palmNormal().roll();
+       //m_transform.setRotation((roll/3.14)*180,0,0,-1);
+       //Frame previous = controller.frame(1); //The previous frame
+   }
+   //create dynamic enviroment mapping
+   calcuSSBB(m_transform.getMatrix(),m_modelview,m_projection);
+   //opencv
    Mat opencv_image = cvQueryFrame(capture);
    Mat dest;
    cvtColor(opencv_image, dest,CV_BGR2RGB);
@@ -137,11 +326,14 @@ void Window::paintGL()
 
    m_environment->bind();
    m_program->bind();
-   m_program->setUniformValue(u_worldToCamera, m_camera.getMatrix());
+   //m_program->setUniformValue(u_worldToCamera, m_camera.getMatrix());
+   m_program->setUniformValue(u_worldToCamera, m_modelview);
    m_program->setUniformValue(u_cameraToView, m_projection);
    m_program->setUniformValue(u_modelToWorld, m_transform.getMatrix());
    m_program->setUniformValue("envTex", 0);
+
    m_model->draw();
+   //m_box->draw();
    m_program->release();
    m_environment->unbind();
 

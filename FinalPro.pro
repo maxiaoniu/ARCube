@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT       += core gui opengl
 
 
 TARGET = FinalPro
@@ -44,7 +44,12 @@ RESOURCES += \
 
 DISTFILES +=
 
-macx: LIBS += -L$$PWD/../../../../../../usr/local/Cellar/opencv/2.4.10.1/lib/ -lopencv_core -lopencv_imgproc -lopencv_highgui
+macx: LIBS += -L$$PWD/../../../../../../usr/local/Cellar/opencv/2.4.10.1/lib/ -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_calib3d
 
 INCLUDEPATH += $$PWD/../../../../../../usr/local/Cellar/opencv/2.4.10.1/include
 DEPENDPATH += $$PWD/../../../../../../usr/local/Cellar/opencv/2.4.10.1/include
+
+macx: LIBS += -L$$PWD/../../../../../../usr/local/Cellar/Leapmotion/lib/ -lLeap
+
+INCLUDEPATH += $$PWD/../../../../../../usr/local/Cellar/Leapmotion/include
+DEPENDPATH += $$PWD/../../../../../../usr/local/Cellar/Leapmotion/include

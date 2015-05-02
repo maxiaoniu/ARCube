@@ -14,9 +14,13 @@
 #include <QOpenGLShaderProgram>
 #include <QOpenGLShader>
 #include <QTimer>
+#include <Leap.h>
+
+using namespace Leap;
 class CvCapture;
 class GLTexture2D;
 class GLTextureCube;
+
 class Window : public QOpenGLWindow,
                protected QOpenGLFunctions
 {
@@ -33,6 +37,9 @@ public:
   void teardownGL();
 
 private:
+  //transform
+  void generateProjectionMatrix(float height, float width, float far, float near);
+  void generateModelViewMatrix();
   // Private Helpers
   void printContextInformation();
   QOpenGLShaderProgram *m_program;
@@ -42,10 +49,12 @@ private:
   int u_cameraToView;
 
   QMatrix4x4 m_projection;
+  QMatrix4x4 m_modelview;
   QMatrix4x4 m_backgroundProjection;
   Camera m_camera;
   Transform m_transform;
   Model *m_model;
+  //Model *m_box;
 
   //background
   Backgroud *m_back;
@@ -56,6 +65,13 @@ private:
   int u_cameraToViewFloor;
   QTimer *m_timer;
   CvCapture* capture;
+
+  //leapmotion
+  Controller m_controller;
+
+  //ssbb and texture of cube mapping
+  float m_ssbb[4];
+  void calcuSSBB(const QMatrix4x4 &m, const QMatrix4x4 &v,const QMatrix4x4 &p);
 };
 
 #endif // WINDOW_H

@@ -9,8 +9,8 @@ uniform samplerCube envTex;
 
 void main()
 {
-    vec3 cameraPos=vec3(0,0,-1);
-    vec3 I = normalize(Position - cameraPos);
-    vec3 R = reflect(I, normalize(Normal));
+
+    vec3 N = normalize(Normal);
+    vec3 R = 2.0 * dot(-Position, N) * N + Position;
     color = texture(envTex, R);
 }

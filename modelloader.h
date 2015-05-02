@@ -6,10 +6,17 @@
 #include <Importer.hpp>
 #include <QString>
 #include <QVector>
+#include <QVector2D>
 #include <QVector3D>
 #include <QVector4D>
 #include <QMatrix4x4>
 #include <QSharedPointer>
+struct P3T2N3Vertex
+{
+    QVector3D position;
+    //QVector2D texCoord;
+    QVector3D normal;
+};
 struct MaterialInfo
 {
     QString Name;
@@ -45,6 +52,8 @@ public:
     ~ModelLoader();
     bool load(QString pathToFile);
     void createModel();
+    void createRoundedBox(float r, float scale, int n);
+
 private:
     Model *m_model;
     QSharedPointer<MaterialInfo> processMaterial(aiMaterial *mater);

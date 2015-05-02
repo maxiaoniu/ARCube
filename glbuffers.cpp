@@ -34,6 +34,16 @@
 #include "glbuffers.h"
 #include <QtGui/qmatrix4x4.h>
 
+
+void qgluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar)
+{
+    const GLdouble ymax = zNear * tan(fovy * M_PI / 360.0);
+    const GLdouble ymin = -ymax;
+    const GLdouble xmin = ymin * aspect;
+    const GLdouble xmax = ymax * aspect;
+    glFrustum(xmin, xmax, ymin, ymax, zNear, zFar);
+}
+
 //============================================================================//
 //                                  GLTexture                                 //
 //============================================================================//
@@ -124,7 +134,6 @@ void GLTexture2D::unbind()
     glDisable(GL_TEXTURE_2D);
 }
 
-
 //============================================================================//
 //                                 GLTexture3D                                //
 //============================================================================//
@@ -178,8 +187,8 @@ GLTextureCube::GLTextureCube(int size)
     glBindTexture(GL_TEXTURE_CUBE_MAP, m_texture);
 
     for (int i = 0; i < 6; ++i)
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, size, size, 0,
-            GL_RGB, GL_UNSIGNED_BYTE, 0);
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, 4, size, size, 0,
+            GL_BGRA, GL_UNSIGNED_BYTE, 0);
 
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);

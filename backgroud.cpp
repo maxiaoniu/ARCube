@@ -55,7 +55,8 @@ void Backgroud::draw()
 {
     m_vao->bind();
     QOpenGLFunctions f = QOpenGLFunctions(QOpenGLContext::currentContext());
-    int vPort[4]; f.glGetIntegerv(GL_VIEWPORT, vPort);
+    int vPort[4];
+    f.glGetIntegerv(GL_VIEWPORT, vPort);
     f.glDrawArrays(GL_TRIANGLES, 0, 12);
     m_vao->release();
 
