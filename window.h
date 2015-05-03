@@ -15,12 +15,12 @@
 #include <QOpenGLShader>
 #include <QTimer>
 #include <Leap.h>
-
 using namespace Leap;
 class CvCapture;
 class GLTexture2D;
 class GLTextureCube;
-
+class GLRenderTargetCube;
+class CubeFace;
 class Window : public QOpenGLWindow,
                protected QOpenGLFunctions
 {
@@ -54,13 +54,15 @@ private:
   Camera m_camera;
   Transform m_transform;
   Model *m_model;
-  //Model *m_box;
+  Model *m_cubemap;
 
   //background
   Backgroud *m_back;
+  CubeFace *m_cubeface;
   GLTexture2D *m_backTexture;
   GLTextureCube *m_environment;
   QOpenGLShaderProgram *m_backprogram;
+
   int u_worldToCameraFloor;
   int u_cameraToViewFloor;
   QTimer *m_timer;
@@ -72,6 +74,10 @@ private:
   //ssbb and texture of cube mapping
   float m_ssbb[4];
   void calcuSSBB(const QMatrix4x4 &m, const QMatrix4x4 &v,const QMatrix4x4 &p);
+  QOpenGLShaderProgram *m_cubefaceprogram;
+  GLuint texFBO;
+  GLuint prepareFBO(int w, int h);
+  GLuint m_fbo;
 };
 
 #endif // WINDOW_H

@@ -10,7 +10,7 @@ uniform samplerCube envTex;
 void main()
 {
 
-    vec3 N = normalize(Normal);
-    vec3 R = 2.0 * dot(-Position, N) * N + Position;
+    vec3 I = normalize(Position);
+    vec3 R = reflect(I, normalize(Normal));
     color = texture(envTex, R);
 }

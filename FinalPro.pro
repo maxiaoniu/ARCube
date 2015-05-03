@@ -21,7 +21,8 @@ SOURCES += main.cpp \
     camera.cpp \
     transform.cpp \
     backgroud.cpp \
-    glbuffers.cpp
+    glbuffers.cpp \
+    cubeface.cpp
 
 HEADERS += \
     window.h \
@@ -30,7 +31,8 @@ HEADERS += \
     camera.h \
     transform.h \
     backgroud.h \
-    glbuffers.h
+    glbuffers.h \
+    cubeface.h
 
 
 

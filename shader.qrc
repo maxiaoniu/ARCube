@@ -11,5 +11,7 @@
         <file>shader/cubemap_posx.jpg</file>
         <file>shader/cubemap_posy.jpg</file>
         <file>shader/cubemap_posz.jpg</file>
+        <file>shader/cube.frag</file>
+        <file>shader/cube.vert</file>
     </qresource>
 </RCC>
