@@ -24,7 +24,7 @@ void CubeFace::create(float x1,float y1, float x2,float y2,float x3,float y3,flo
         // Positions // Texture Coords
 
          1,-1,  0,  x3, y3,
-         1, 1,  0,  x2, y1,
+         1, 1,  0,  x2, y2,
         -1, 1,  0,  x1, y1,
 
         -1, 1,  0,  x1, y1,

@@ -7,10 +7,11 @@ uniform mat4 worldToCamera;
 uniform mat4 cameraToView;
 out vec3 Normal;
 out vec3 Position;
-
+out mat4 view;
 void main()
 {
+    view = worldToCamera * modelToWorld;
     gl_Position = cameraToView * worldToCamera * modelToWorld*vec4(position, 1.0);
-    Normal = mat3(transpose(inverse(modelToWorld))) * normal;
-    Position = vec3(modelToWorld * vec4(position, 1.0f));
+    Normal = mat3(transpose(inverse(view))) * normal;
+    Position = vec3(view * vec4(position, 1.0f));
 }

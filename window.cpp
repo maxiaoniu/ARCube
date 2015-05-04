@@ -3,10 +3,7 @@
 #include <QDebug>
 #include <QString>
 #include <QVector4D>
-#include <opencv2/objdetect/objdetect.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/calib3d/calib3d.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+
 #include "glbuffers.h"
 #include "cubeface.h"
 
@@ -18,10 +15,10 @@ Window::Window()
     m_timer->setInterval(40);
     connect(m_timer, SIGNAL(timeout()), this, SLOT(update()));
     m_timer->start();
-
+    //capture = new VideoCapture(0);
     capture = cvCaptureFromCAM( 0 );
-
-
+    //capture->set(CV_CAP_PROP_FRAME_WIDTH,1280);
+    //capture->set(CV_CAP_PROP_FRAME_HEIGHT,720);
 }
 
 Window::~Window()
@@ -257,8 +254,8 @@ void Window::calcuSSBB(const QMatrix4x4 &m, const QMatrix4x4 &v,const QMatrix4x4
     m_ssbb[2]=xList.last()/1280;
     m_ssbb[1]=yList.first()/720;
     m_ssbb[3]=yList.last()/720;
-    #define PERCENT_ENLARGE 0.10f
-    #define PERCENT_BORDER  0.20f
+    #define PERCENT_ENLARGE 0.05f
+    #define PERCENT_BORDER  0.10f
     float width  = m_ssbb[2] - m_ssbb[0];
     float height = m_ssbb[3] - m_ssbb[1];
     float cx = m_ssbb[0] + ( width / 2.0f );
@@ -270,8 +267,8 @@ void Window::calcuSSBB(const QMatrix4x4 &m, const QMatrix4x4 &v,const QMatrix4x4
     m_ssbb[2] = ( cx + ( width / 2.0f ) > 1.0f - PERCENT_BORDER ) ? 1.0f - PERCENT_BORDER : cx + ( width / 2.0f );
     m_ssbb[3] = ( cy + ( height / 2.0f ) > 1.0f - PERCENT_BORDER ) ? 1.0f - PERCENT_BORDER : cy + ( height / 2.0f );
 
-   // qDebug() <<"x: "<<xList.first()<<" "<< xList.last();
-    //qDebug() <<"y: "<<yList.first()<<" "<< yList.last();
+    qDebug() <<"x: "<< m_ssbb[0]<<" "<<  m_ssbb[2];
+    qDebug() <<"y: "<< m_ssbb[1]<<" "<<  m_ssbb[3];
 
 }
 //calculate the uv of cube texture
@@ -309,7 +306,7 @@ void Window::initializeGL()
 
   m_transform.setToIdentity();
   //m_transform.rotate(20,QVector3D(0,1,0));
-  m_transform.translate(QVector3D(0,152,200));
+  //m_transform.translate(QVector3D(0,152,200));
 
 
   m_program = new QOpenGLShaderProgram();
@@ -327,6 +324,8 @@ void Window::initializeGL()
 
   m_model = new Model;
   ModelLoader mLoader(m_model);
+  //mLoader.load("bunny.obj");
+  //mLoader.createModel();
   mLoader.createRoundedBox(0.25,40,10);
 
   //mLoader.createRoundedBox(0.25,40,10);
@@ -367,7 +366,7 @@ void Window::initializeGL()
        << ":/shader/cubemap_negy.jpg" << ":/shader/cubemap_posz.jpg" << ":/shader/cubemap_negz.png";
   m_environment = new GLTextureCube(list, 1024);
 
-  m_fbo = prepareFBO(256, 256);
+  m_fbo = prepareFBO(512, 512);
 }
 
 void Window::resizeGL(int width, int height)
@@ -383,18 +382,40 @@ void Window::paintGL()
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
    //LeapMotion
+   bool drawflag = true;
    if( m_controller.isConnected()) //controller is a Controller object
    {
        Frame frame = m_controller.frame(); //The latest frame
-       Leap::HandList hands = frame.hands();
-       Hand firstHand = hands[0];
-       Leap::Vector handCenter = firstHand.palmPosition();
-       m_transform.setTranslation(QVector3D(-handCenter.x,handCenter.y,handCenter.z));
-       //float yaw = firstHand.direction().yaw();
-       //m_transform.setRotation(-(yaw/3.14)*180,0,-1,0);
-       //float roll = firstHand.palmNormal().roll();
-       //m_transform.setRotation((roll/3.14)*180,0,0,-1);
-       //Frame previous = controller.frame(1); //The previous frame
+       if (!frame.hands().isEmpty())
+       {
+           Leap::HandList hands = frame.hands();
+           Hand firstHand = hands[0];
+           Leap::Vector handCenter = firstHand.palmPosition();
+           m_transform.setToIdentity();
+           m_transform.rotate(180,QVector3D(0,0,-1));
+           m_transform.translate(QVector3D(-handCenter.x,handCenter.y,handCenter.z));
+           float yaw = firstHand.direction().yaw();
+           m_transform.rotate(-(yaw/3.14)*180,QVector3D(0,-1,0));
+           float roll = firstHand.palmNormal().roll();
+           m_transform.rotate((roll/3.14)*180,QVector3D(0,0,-1));
+           //Frame previous = controller.frame(1); //The previous frame
+
+           if (firstHand.grabStrength()>0.5) {
+               drawflag = false;
+
+           }
+       }
+       else
+       {
+           m_transform.rotate(1,QVector3D(0,1,0));
+           m_transform.setTranslation(QVector3D(0,150,0));
+          // m_transform.setScale(QVector3D(200,200,200));
+       }
+
+   }
+   else
+   {
+        m_transform.setTranslation(QVector3D(0,150,0));
    }
    //create dynamic enviroment mapping
    calcuSSBB(m_transform.getMatrix(),m_modelview,m_projection);
@@ -403,6 +424,7 @@ void Window::paintGL()
    Mat dest;
    cvtColor(opencv_image, dest,CV_BGR2RGB);
    QImage image((uchar*)dest.data, dest.cols, dest.rows,QImage::Format_RGB888);
+
 
 //  //m_backTexture->bind(0);
 //   //m_backTexture->setData(image,QOpenGLTexture::DontGenerateMipMaps);
@@ -414,11 +436,12 @@ void Window::paintGL()
 
     // bind a framebuffer object
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
+    //glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     // Set Drawing buffers
     GLuint attachments[1] = {GL_COLOR_ATTACHMENT0};
     glDrawBuffers(1,  attachments);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0,0,256,256);
+    glViewport(0,0,512,512);
     //+X
     m_backTexture->bind();
     m_backTexture->load(image);
@@ -430,49 +453,68 @@ void Window::paintGL()
     m_cubeface->draw();
     m_cubefaceprogram->release();
     m_backTexture->unbind();
-    //-X
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_X, texFBO, 0);
+    //-X
+    glDrawBuffers(1,  attachments);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glViewport(0,0,512,512);
     m_backTexture->bind();
     m_backTexture->load(image);
     m_cubefaceprogram->bind();
     m_cubeface->create(m_ssbb[2],m_ssbb[1],
-                    m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
                     m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,m_ssbb[1] / 2.0f,
+                    m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
                     m_ssbb[2],m_ssbb[3]);
     m_cubefaceprogram->setUniformValue("screenTexture", 0);
     m_cubeface->draw();
     m_cubefaceprogram->release();
     m_backTexture->unbind();
 
-    //+Y
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, texFBO, 0);
-    m_backTexture->bind();
-    m_backTexture->load(image);
-    m_cubefaceprogram->bind();
-    m_cubeface->create( m_ssbb[0]/2.0f,m_ssbb[1] / 2.0f,
-                        m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,( m_ssbb[1] / 2.0f ),
-                        m_ssbb[2] ,m_ssbb[1],
-                        m_ssbb[0],m_ssbb[1]);
-    m_cubefaceprogram->setUniformValue("screenTexture", 0);
-    m_cubeface->draw();
-    m_cubefaceprogram->release();
-    m_backTexture->unbind();
-    //-Y
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, texFBO, 0);
-    m_backTexture->bind();
-    m_backTexture->load(image);
-    m_cubefaceprogram->bind();
-    m_cubeface->create( m_ssbb[0],m_ssbb[3],
-                        m_ssbb[2],m_ssbb[3],
-                        m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ),m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
-                        m_ssbb[0] / 2.0f,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ));
-    m_cubefaceprogram->setUniformValue("screenTexture", 0);
-    m_cubeface->draw();
-    m_cubefaceprogram->release();
-    m_backTexture->unbind();
 
-    //+Z
+//    //+Y
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, texFBO, 0);
+    glDrawBuffers(1,  attachments);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glViewport(0,0,512,512);
+    m_backTexture->bind();
+    m_backTexture->load(image);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    m_cubefaceprogram->bind();
+    m_cubeface->create( m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,( m_ssbb[1] / 2.0f ),
+                        m_ssbb[0]/2.0f,m_ssbb[1] / 2.0f,
+                        m_ssbb[0],m_ssbb[1],
+                        m_ssbb[2],m_ssbb[1]
+                        );
+    m_cubefaceprogram->setUniformValue("screenTexture", 0);
+    m_cubeface->draw();
+    m_cubefaceprogram->release();
+    m_backTexture->unbind();
+//
+//    //-Y
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, texFBO, 0);
+    glDrawBuffers(1,  attachments);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glViewport(0,0,512,512);
+    m_backTexture->bind();
+    m_backTexture->load(image);
+    m_cubefaceprogram->bind();
+    m_cubeface->create( m_ssbb[2],m_ssbb[3],
+                        m_ssbb[0],m_ssbb[3],
+                        m_ssbb[0] / 2.0f,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
+                        m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ),m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f )
+                        );
+    m_cubefaceprogram->setUniformValue("screenTexture", 0);
+    m_cubeface->draw();
+    m_cubefaceprogram->release();
+    m_backTexture->unbind();
+//    //+Z
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, texFBO, 0);
+    glDrawBuffers(1,  attachments);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glViewport(0,0,512,512);
     m_backTexture->bind();
     m_backTexture->load(image);
     m_cubefaceprogram->bind();
@@ -484,8 +526,11 @@ void Window::paintGL()
     m_cubeface->draw();
     m_cubefaceprogram->release();
     m_backTexture->unbind();
-    //-Z
+//    //-Z
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, texFBO, 0);
+    glDrawBuffers(1,  attachments);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glViewport(0,0,512,512);
     m_backTexture->bind();
     m_backTexture->load(image);
     m_cubefaceprogram->bind();
@@ -497,7 +542,7 @@ void Window::paintGL()
     m_cubeface->draw();
     m_cubefaceprogram->release();
     m_backTexture->unbind();
-
+//
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0,0,1280,720);
 
@@ -523,8 +568,8 @@ void Window::paintGL()
    m_program->setUniformValue(u_cameraToView, m_projection);
    m_program->setUniformValue(u_modelToWorld, m_transform.getMatrix());
    m_program->setUniformValue("envTex", 0);
-
-   m_model->draw();
+   if(drawflag)
+        m_model->draw();
    m_program->release();
    //m_environment->unbind();
 

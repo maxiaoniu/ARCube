@@ -16,7 +16,7 @@ bool ModelLoader::load(QString pathToFile)
 {
     Assimp::Importer importer;
 
-    const aiScene* scene = importer.ReadFile(pathToFile.toStdString(), aiProcess_Triangulate |aiProcess_GenNormals| aiProcess_FlipUVs);
+    const aiScene* scene = importer.ReadFile(pathToFile.toStdString(), aiProcess_Triangulate |aiProcess_GenSmoothNormals| aiProcess_FlipUVs);
 
     if (!scene)
     {

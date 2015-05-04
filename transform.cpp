@@ -67,10 +67,11 @@ const QMatrix4x4& Transform::getMatrix()
         m_model2world.setToIdentity();
         //must in order translation*rotation*scale
 
-
-        m_model2world.scale(m_scale);
-        m_model2world.rotate(m_rotation);
         m_model2world.translate(m_translation);
+        m_model2world.rotate(m_rotation);
+        m_model2world.scale(m_scale);
+        //m_model2world.rotate(m_rotation);
+
     }
 
     return m_model2world;
