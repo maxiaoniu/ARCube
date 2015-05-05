@@ -21,6 +21,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 using namespace Leap;
 class GLTexture2D;
+class GLTexture3D;
 class GLTextureCube;
 class GLRenderTargetCube;
 class CubeFace;
@@ -46,6 +47,7 @@ private:
   // Private Helpers
   void printContextInformation();
   QOpenGLShaderProgram *m_program;
+  QOpenGLShaderProgram *m_righthandprogram;
 
   int u_modelToWorld;
   int u_worldToCamera;
@@ -56,7 +58,9 @@ private:
   QMatrix4x4 m_backgroundProjection;
   Camera m_camera;
   Transform m_transform;
+  Transform m_righthandtransform;
   Model *m_model;
+  Model *m_bunny;
   Model *m_cubemap;
 
   //background
@@ -79,8 +83,12 @@ private:
   void calcuSSBB(const QMatrix4x4 &m, const QMatrix4x4 &v,const QMatrix4x4 &p);
   QOpenGLShaderProgram *m_cubefaceprogram;
   GLuint texFBO;
+  GLuint backFBO;
   GLuint prepareFBO(int w, int h);
+  GLuint prepareFBO1(int w, int h);
   GLuint m_fbo;
+  GLuint m_backfbo;
+  GLTexture3D *m_noise;
 };
 
 #endif // WINDOW_H

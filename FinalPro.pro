@@ -22,7 +22,8 @@ SOURCES += main.cpp \
     transform.cpp \
     backgroud.cpp \
     glbuffers.cpp \
-    cubeface.cpp
+    cubeface.cpp \
+    fbm.c
 
 HEADERS += \
     window.h \
@@ -32,7 +33,8 @@ HEADERS += \
     transform.h \
     backgroud.h \
     glbuffers.h \
-    cubeface.h
+    cubeface.h \
+    fbm.h
 
 
 

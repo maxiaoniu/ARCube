@@ -13,5 +13,7 @@
         <file>shader/cubemap_posz.jpg</file>
         <file>shader/cube.frag</file>
         <file>shader/cube.vert</file>
+        <file>shader/bunny.frag</file>
+        <file>shader/bunny.vert</file>
     </qresource>
 </RCC>

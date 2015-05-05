@@ -3,10 +3,10 @@
 #include <QDebug>
 #include <QString>
 #include <QVector4D>
-
+#include "fbm.h"
 #include "glbuffers.h"
 #include "cubeface.h"
-
+#include <QOpenGLFramebufferObject>
 
 using namespace cv;
 Window::Window()
@@ -56,6 +56,26 @@ GLuint createRGBATexture(int w, int h) {
 
     return(tex);
 }
+
+GLuint createBackTexture(int w, int h) {
+    GLuint tex;
+
+    glGenTextures(1, &tex);
+
+    glBindTexture(GL_TEXTURE_2D, tex);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0,
+        GL_RGB, GL_UNSIGNED_BYTE, 0);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return(tex);
+}
 GLuint Window::prepareFBO(int w, int h) {
 
     GLuint fbo;
@@ -65,7 +85,53 @@ GLuint Window::prepareFBO(int w, int h) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
     // attach textures for colors
     texFBO = createRGBATexture(w,h);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, texFBO, 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, texFBO, 0);
+    // check if everything is OK
+    GLenum e = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+    switch (e) {
+
+        case GL_FRAMEBUFFER_UNDEFINED:
+            printf("FBO Undefined\n");
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT :
+            printf("FBO Incomplete Attachment\n");
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT :
+            printf("FBO Missing Attachment\n");
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER :
+            printf("FBO Incomplete Draw Buffer\n");
+            break;
+        case GL_FRAMEBUFFER_UNSUPPORTED :
+            printf("FBO Unsupported\n");
+            break;
+        case GL_FRAMEBUFFER_COMPLETE:
+            printf("FBO OK\n");
+            break;
+        default:
+            printf("FBO Problem?\n");
+    }
+
+    if (e != GL_FRAMEBUFFER_COMPLETE)
+        return (0);
+    // unbind fbo
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+//	printFramebuffersInfo(fbo);
+
+    return fbo;
+}
+
+GLuint Window::prepareFBO1(int w, int h) {
+
+    GLuint fbo;
+    // Generate one frame buffer
+    glGenFramebuffers(1, &fbo);
+    // bind it
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+    // attach textures for colors
+    backFBO = createBackTexture(1280,720);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, backFBO, 0);
     // check if everything is OK
     GLenum e = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
     switch (e) {
@@ -290,9 +356,31 @@ void Window::initializeGL()
 
   // Set global information
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-  glEnable(GL_DEPTH_TEST);
+  //glEnable(GL_DEPTH_TEST);
   glEnable(GL_CULL_FACE);
 
+  //create noise tex
+  const int NOISE_SIZE = 128; // for a different size, B and BM in fbm.c must also be changed
+  m_noise = new GLTexture3D(NOISE_SIZE, NOISE_SIZE, NOISE_SIZE);
+  QRgb *data = new QRgb[NOISE_SIZE * NOISE_SIZE * NOISE_SIZE];
+  memset(data, 0, NOISE_SIZE * NOISE_SIZE * NOISE_SIZE * sizeof(QRgb));
+  QRgb *p = data;
+  float pos[3];
+  for (int k = 0; k < NOISE_SIZE; ++k) {
+      pos[2] = k * (0x20 / (float)NOISE_SIZE);
+      for (int j = 0; j < NOISE_SIZE; ++j) {
+          for (int i = 0; i < NOISE_SIZE; ++i) {
+              for (int byte = 0; byte < 4; ++byte) {
+                  pos[0] = (i + (byte & 1) * 16) * (0x20 / (float)NOISE_SIZE);
+                  pos[1] = (j + (byte & 2) * 8) * (0x20 / (float)NOISE_SIZE);
+                  *p |= (int)(128.0f * (noise3(pos) + 1.0f)) << (byte * 8);
+              }
+              ++p;
+          }
+      }
+  }
+  m_noise->load(NOISE_SIZE, NOISE_SIZE, NOISE_SIZE, data);
+  delete[] data;
 
   m_projection.setToIdentity();
   //m_projection.perspective(60.0f, width() / float(height()), 0.1f, 3000.0f);
@@ -305,6 +393,7 @@ void Window::initializeGL()
   m_camera.translate(0,0,-5);
 
   m_transform.setToIdentity();
+  m_righthandtransform.setToIdentity();
   //m_transform.rotate(20,QVector3D(0,1,0));
   //m_transform.translate(QVector3D(0,152,200));
 
@@ -324,11 +413,22 @@ void Window::initializeGL()
 
   m_model = new Model;
   ModelLoader mLoader(m_model);
-  //mLoader.load("bunny.obj");
-  //mLoader.createModel();
   mLoader.createRoundedBox(0.25,40,10);
 
-  //mLoader.createRoundedBox(0.25,40,10);
+  //bunny
+  m_bunny = new Model;
+  ModelLoader mbLoader(m_bunny);
+  mbLoader.createRoundedBox(0.25,40,10);
+  m_righthandprogram = new QOpenGLShaderProgram();
+  m_righthandprogram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shader/bunny.vert");
+  m_righthandprogram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shader/bunny.frag");
+  m_righthandprogram->link();
+  m_righthandprogram->bind();
+  u_modelToWorld = m_program->uniformLocation("modelToWorld");
+  u_worldToCamera = m_program->uniformLocation("worldToCamera");
+  u_cameraToView = m_program->uniformLocation("cameraToView");
+  m_righthandprogram->release();
+
 
   //draw background
   //m_backTexture = new QOpenGLTexture(QImage(":/shader/back.png"),QOpenGLTexture::DontGenerateMipMaps);
@@ -367,6 +467,7 @@ void Window::initializeGL()
   m_environment = new GLTextureCube(list, 1024);
 
   m_fbo = prepareFBO(512, 512);
+  m_backfbo = prepareFBO1(1280, 720);
 }
 
 void Window::resizeGL(int width, int height)
@@ -380,9 +481,9 @@ void Window::paintGL()
 {
   // Clear
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
    //LeapMotion
    bool drawflag = true;
+   bool drawflag2 = true;
    if( m_controller.isConnected()) //controller is a Controller object
    {
        Frame frame = m_controller.frame(); //The latest frame
@@ -392,7 +493,7 @@ void Window::paintGL()
            Hand firstHand = hands[0];
            Leap::Vector handCenter = firstHand.palmPosition();
            m_transform.setToIdentity();
-           m_transform.rotate(180,QVector3D(0,0,-1));
+           //m_transform.rotate(180,QVector3D(0,0,-1));
            m_transform.translate(QVector3D(-handCenter.x,handCenter.y,handCenter.z));
            float yaw = firstHand.direction().yaw();
            m_transform.rotate(-(yaw/3.14)*180,QVector3D(0,-1,0));
@@ -404,12 +505,28 @@ void Window::paintGL()
                drawflag = false;
 
            }
+
+           Hand secondHand = hands[1];
+           Leap::Vector handCenter2 = secondHand.palmPosition();
+           m_righthandtransform.setToIdentity();
+           //m_transform.rotate(180,QVector3D(0,0,-1));
+           m_righthandtransform.translate(QVector3D(-handCenter2.x,handCenter2.y,handCenter2.z));
+           float yaw2 = secondHand.direction().yaw();
+           m_righthandtransform.rotate(-(yaw2/3.14)*180,QVector3D(0,-1,0));
+           float roll2 = firstHand.palmNormal().roll();
+           m_righthandtransform.rotate((roll2/3.14)*180,QVector3D(0,0,-1));
+           //Frame previous = controller.frame(1); //The previous frame
+
+           if (secondHand.grabStrength()>0.5) {
+               drawflag2 = false;
+
+           }
        }
        else
        {
-           m_transform.rotate(1,QVector3D(0,1,0));
+           m_transform.rotate(2,QVector3D(0,1,0));
            m_transform.setTranslation(QVector3D(0,150,0));
-          // m_transform.setScale(QVector3D(200,200,200));
+           //m_transform.setScale(QVector3D(5,5,5));
        }
 
    }
@@ -426,25 +543,59 @@ void Window::paintGL()
    QImage image((uchar*)dest.data, dest.cols, dest.rows,QImage::Format_RGB888);
 
 
-//  //m_backTexture->bind(0);
-//   //m_backTexture->setData(image,QOpenGLTexture::DontGenerateMipMaps);
+  //m_backTexture->bind(0);
+   //m_backTexture->setData(image,QOpenGLTexture::DontGenerateMipMaps);
 
-//   //glActiveTexture(GL_TEXTURE0);
+   //glActiveTexture(GL_TEXTURE0);
     //generate FBO
 
 
 
     // bind a framebuffer object
+//    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_backfbo);
+//    //glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+//    // Set Drawing buffers
+//    GLuint attachments[1] = {GL_COLOR_ATTACHMENT0};
+//    glDrawBuffers(1,  attachments);
+//    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//    glViewport(0,0,1280,720);
+
+//    m_backTexture->bind();
+//    m_backTexture->load(image);
+//    m_backprogram->bind();
+//    m_backprogram->setUniformValue("ourTexture", 0);
+//    m_backprogram->setUniformValue(u_worldToCameraFloor, m_camera.getMatrix());
+//    m_backprogram->setUniformValue(u_cameraToViewFloor, m_backgroundProjection);
+//    if(m_back!= NULL)
+//    {
+//       m_back->draw();
+//    }
+//    m_backprogram->release();
+//    m_backTexture->unbind();
+//    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+//    m_noise->bind();
+//       //glEnable(GL_TEXTURE_3D);
+//    m_righthandprogram->bind();
+//       //m_program->setUniformValue(u_worldToCamera, m_camera.getMatrix());
+//    m_righthandprogram->setUniformValue(u_worldToCamera, m_modelview);
+//    m_righthandprogram->setUniformValue(u_cameraToView, m_projection);
+//    m_righthandprogram->setUniformValue(u_modelToWorld, m_righthandtransform.getMatrix());
+//    m_righthandprogram->setUniformValue("noise", 0);
+//     if(drawflag2)
+//            m_bunny->draw();
+//       m_righthandprogram->release();
+//       m_noise->unbind();
+//       //m_environment->unbind();
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
-    //glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    // Set Drawing buffers
-    GLuint attachments[1] = {GL_COLOR_ATTACHMENT0};
-    glDrawBuffers(1,  attachments);
+    GLuint attachments1[1] = {GL_COLOR_ATTACHMENT0};
+    glDrawBuffers(1,  attachments1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0,0,512,512);
     //+X
     m_backTexture->bind();
     m_backTexture->load(image);
+    //glBindTexture(GL_TEXTURE_2D, backFBO);
     m_cubefaceprogram->bind();
     m_cubeface->create( m_ssbb[0]/2.0f,m_ssbb[1] / 2.0f,
                         m_ssbb[0],m_ssbb[1],
@@ -455,11 +606,9 @@ void Window::paintGL()
     m_backTexture->unbind();
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_X, texFBO, 0);
     //-X
-    glDrawBuffers(1,  attachments);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0,0,512,512);
     m_backTexture->bind();
     m_backTexture->load(image);
+    //glBindTexture(GL_TEXTURE_2D, backFBO);
     m_cubefaceprogram->bind();
     m_cubeface->create(m_ssbb[2],m_ssbb[1],
                     m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,m_ssbb[1] / 2.0f,
@@ -473,11 +622,9 @@ void Window::paintGL()
 
 //    //+Y
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, texFBO, 0);
-    glDrawBuffers(1,  attachments);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0,0,512,512);
     m_backTexture->bind();
     m_backTexture->load(image);
+    //glBindTexture(GL_TEXTURE_2D, backFBO);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -495,11 +642,9 @@ void Window::paintGL()
 //
 //    //-Y
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, texFBO, 0);
-    glDrawBuffers(1,  attachments);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0,0,512,512);
     m_backTexture->bind();
     m_backTexture->load(image);
+    //glBindTexture(GL_TEXTURE_2D, backFBO);
     m_cubefaceprogram->bind();
     m_cubeface->create( m_ssbb[2],m_ssbb[3],
                         m_ssbb[0],m_ssbb[3],
@@ -512,11 +657,9 @@ void Window::paintGL()
     m_backTexture->unbind();
 //    //+Z
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, texFBO, 0);
-    glDrawBuffers(1,  attachments);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0,0,512,512);
     m_backTexture->bind();
     m_backTexture->load(image);
+    //glBindTexture(GL_TEXTURE_2D, backFBO);
     m_cubefaceprogram->bind();
     m_cubeface->create( m_ssbb[0],m_ssbb[1],
                         m_ssbb[2],m_ssbb[1],
@@ -528,11 +671,9 @@ void Window::paintGL()
     m_backTexture->unbind();
 //    //-Z
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, texFBO, 0);
-    glDrawBuffers(1,  attachments);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0,0,512,512);
     m_backTexture->bind();
     m_backTexture->load(image);
+    //glBindTexture(GL_TEXTURE_2D, backFBO);
     m_cubefaceprogram->bind();
     m_cubeface->create(m_ssbb[2],m_ssbb[1],
                     m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
@@ -545,9 +686,9 @@ void Window::paintGL()
 //
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0,0,1280,720);
-
     m_backTexture->bind();
     m_backTexture->load(image);
+    //glBindTexture(GL_TEXTURE_2D, backFBO);
     m_backprogram->bind();
     m_backprogram->setUniformValue("ourTexture", 0);
     m_backprogram->setUniformValue(u_worldToCameraFloor, m_camera.getMatrix());
@@ -573,6 +714,17 @@ void Window::paintGL()
    m_program->release();
    //m_environment->unbind();
 
+   m_noise->bind();
+   m_righthandprogram->bind();
+   m_righthandprogram->setUniformValue(u_worldToCamera, m_modelview);
+   m_righthandprogram->setUniformValue(u_cameraToView, m_projection);
+   m_righthandprogram->setUniformValue(u_modelToWorld, m_righthandtransform.getMatrix());
+   m_righthandprogram->setUniformValue("noise", 0);
+   if(drawflag2)
+           m_bunny->draw();
+   m_righthandprogram->release();
+   m_noise->unbind();
+      //m_environment->unbind();
 
 }
 

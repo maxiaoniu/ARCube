@@ -62,6 +62,7 @@ private:
 
     QVector<float> m_vertices;
     QVector<float> m_normals;
+    QVector<float> m_uv;
     QVector<unsigned int> m_indices;
 
 

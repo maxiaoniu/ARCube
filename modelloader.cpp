@@ -16,7 +16,7 @@ bool ModelLoader::load(QString pathToFile)
 {
     Assimp::Importer importer;
 
-    const aiScene* scene = importer.ReadFile(pathToFile.toStdString(), aiProcess_Triangulate |aiProcess_GenSmoothNormals| aiProcess_FlipUVs);
+    const aiScene* scene = importer.ReadFile(pathToFile.toStdString(), aiProcess_Triangulate|aiProcess_GenUVCoords|aiProcess_GenSmoothNormals| aiProcess_FlipUVs);
 
     if (!scene)
     {
@@ -133,6 +133,16 @@ QSharedPointer<Mesh> ModelLoader::processMesh(aiMesh *mesh)
         };
     }
 
+    // Get Normals
+    if (mesh->HasTextureCoords(0))
+    {
+        for (uint ii = 0; ii < mesh->mNumVertices; ++ii)
+        {
+            aiVector3D &vec = mesh->mTextureCoords[0][ii];
+            m_uv.push_back(vec.x);
+            m_uv.push_back(vec.y);
+        };
+    }
     // Get mesh indexes
     for (uint t = 0; t < mesh->mNumFaces; ++t)
     {

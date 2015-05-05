@@ -143,8 +143,8 @@ GLTexture3D::GLTexture3D(int width, int height, int depth)
     GLBUFFERS_ASSERT_OPENGL("GLTexture3D::GLTexture3D", glTexImage3D, return)
 
     glBindTexture(GL_TEXTURE_3D, m_texture);
-    glTexImage3D(GL_TEXTURE_3D, 0, 4, width, height, depth, 0,
-        GL_BGRA, GL_UNSIGNED_BYTE, 0);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, width, height, depth, 0,
+        GL_RGB, GL_UNSIGNED_BYTE, 0);
 
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -161,8 +161,8 @@ void GLTexture3D::load(int width, int height, int depth, QRgb *data)
     GLBUFFERS_ASSERT_OPENGL("GLTexture3D::load", glTexImage3D, return)
 
     glBindTexture(GL_TEXTURE_3D, m_texture);
-    glTexImage3D(GL_TEXTURE_3D, 0, 4, width, height, depth, 0,
-        GL_BGRA, GL_UNSIGNED_BYTE, data);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, width, height, depth, 0,
+        GL_RGB, GL_UNSIGNED_BYTE, data);
     glBindTexture(GL_TEXTURE_3D, 0);
 }
 
