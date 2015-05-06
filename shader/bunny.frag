@@ -15,7 +15,7 @@ void main()
     float turbulence = 0.0;
     float scale =1;
     vec4 marbleColors1 = vec4(0.9, 0.9, 0.9, 1);
-    vec4 marbleColors2 = vec4(0.6, 0.5, 0.5, 1);
+    vec4 marbleColors2 = vec4(0.9, 0.5, 0.5, 1);
 
 
     for (int i = 0; i < 4; ++i)

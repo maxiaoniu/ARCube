@@ -320,7 +320,7 @@ void Window::calcuSSBB(const QMatrix4x4 &m, const QMatrix4x4 &v,const QMatrix4x4
     m_ssbb[2]=xList.last()/1280;
     m_ssbb[1]=yList.first()/720;
     m_ssbb[3]=yList.last()/720;
-    #define PERCENT_ENLARGE 0.05f
+    #define PERCENT_ENLARGE 0.20f
     #define PERCENT_BORDER  0.10f
     float width  = m_ssbb[2] - m_ssbb[0];
     float height = m_ssbb[3] - m_ssbb[1];
@@ -356,7 +356,8 @@ void Window::initializeGL()
 
   // Set global information
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-  //glEnable(GL_DEPTH_TEST);
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_GREATER);
   glEnable(GL_CULL_FACE);
 
   //create noise tex
@@ -418,6 +419,8 @@ void Window::initializeGL()
   //bunny
   m_bunny = new Model;
   ModelLoader mbLoader(m_bunny);
+  //mbLoader.load("bunny.obj");
+  //mbLoader.createModel();
   mbLoader.createRoundedBox(0.25,40,10);
   m_righthandprogram = new QOpenGLShaderProgram();
   m_righthandprogram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shader/bunny.vert");
@@ -491,6 +494,7 @@ void Window::paintGL()
        {
            Leap::HandList hands = frame.hands();
            Hand firstHand = hands[0];
+
            Leap::Vector handCenter = firstHand.palmPosition();
            m_transform.setToIdentity();
            //m_transform.rotate(180,QVector3D(0,0,-1));
@@ -506,27 +510,35 @@ void Window::paintGL()
 
            }
 
+
            Hand secondHand = hands[1];
+
+
            Leap::Vector handCenter2 = secondHand.palmPosition();
            m_righthandtransform.setToIdentity();
            //m_transform.rotate(180,QVector3D(0,0,-1));
            m_righthandtransform.translate(QVector3D(-handCenter2.x,handCenter2.y,handCenter2.z));
            float yaw2 = secondHand.direction().yaw();
            m_righthandtransform.rotate(-(yaw2/3.14)*180,QVector3D(0,-1,0));
-           float roll2 = firstHand.palmNormal().roll();
+           float roll2 = secondHand.palmNormal().roll();
            m_righthandtransform.rotate((roll2/3.14)*180,QVector3D(0,0,-1));
            //Frame previous = controller.frame(1); //The previous frame
 
            if (secondHand.grabStrength()>0.5) {
                drawflag2 = false;
 
+
            }
        }
        else
        {
+           m_transform.rotate(2,QVector3D(1,1,0));
            m_transform.rotate(2,QVector3D(0,1,0));
-           m_transform.setTranslation(QVector3D(0,150,0));
+           m_transform.setTranslation(QVector3D(40,150,0));
            //m_transform.setScale(QVector3D(5,5,5));
+           m_righthandtransform.rotate(2,QVector3D(0,1,0));
+           m_righthandtransform.setTranslation(QVector3D(-30,150,0));
+          //m_righthandtransform.setScale(QVector3D(250,250,250));
        }
 
    }
@@ -552,133 +564,142 @@ void Window::paintGL()
 
 
     // bind a framebuffer object
-//    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_backfbo);
-//    //glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-//    // Set Drawing buffers
-//    GLuint attachments[1] = {GL_COLOR_ATTACHMENT0};
-//    glDrawBuffers(1,  attachments);
-//    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//    glViewport(0,0,1280,720);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_backfbo);
+    //glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    // Set Drawing buffers
+    GLuint attachments[1] = {GL_COLOR_ATTACHMENT0};
+    glDrawBuffers(1,  attachments);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glViewport(0,0,1280,720);
 
-//    m_backTexture->bind();
-//    m_backTexture->load(image);
-//    m_backprogram->bind();
-//    m_backprogram->setUniformValue("ourTexture", 0);
-//    m_backprogram->setUniformValue(u_worldToCameraFloor, m_camera.getMatrix());
-//    m_backprogram->setUniformValue(u_cameraToViewFloor, m_backgroundProjection);
-//    if(m_back!= NULL)
-//    {
-//       m_back->draw();
-//    }
-//    m_backprogram->release();
-//    m_backTexture->unbind();
-//    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
-//    m_noise->bind();
-//       //glEnable(GL_TEXTURE_3D);
-//    m_righthandprogram->bind();
-//       //m_program->setUniformValue(u_worldToCamera, m_camera.getMatrix());
-//    m_righthandprogram->setUniformValue(u_worldToCamera, m_modelview);
-//    m_righthandprogram->setUniformValue(u_cameraToView, m_projection);
-//    m_righthandprogram->setUniformValue(u_modelToWorld, m_righthandtransform.getMatrix());
-//    m_righthandprogram->setUniformValue("noise", 0);
-//     if(drawflag2)
-//            m_bunny->draw();
-//       m_righthandprogram->release();
-//       m_noise->unbind();
-//       //m_environment->unbind();
+    m_backTexture->bind();
+    m_backTexture->load(image);
+    m_backprogram->bind();
+    m_backprogram->setUniformValue("ourTexture", 0);
+    m_backprogram->setUniformValue(u_worldToCameraFloor, m_camera.getMatrix());
+    m_backprogram->setUniformValue(u_cameraToViewFloor, m_backgroundProjection);
+    if(m_back!= NULL)
+    {
+       m_back->draw();
+    }
+    m_backprogram->release();
+    m_backTexture->unbind();
+    if(drawflag2){
+    m_noise->bind();
+       //glEnable(GL_TEXTURE_3D);
+    m_righthandprogram->bind();
+       //m_program->setUniformValue(u_worldToCamera, m_camera.getMatrix());
+    m_righthandprogram->setUniformValue(u_worldToCamera, m_modelview);
+    m_righthandprogram->setUniformValue(u_cameraToView, m_projection);
+    m_righthandprogram->setUniformValue(u_modelToWorld, m_righthandtransform.getMatrix());
+    m_righthandprogram->setUniformValue("noise", 0);
+    m_bunny->draw();
+    m_righthandprogram->release();
+    m_noise->unbind();}
+       //m_environment->unbind();
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
+    //glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     GLuint attachments1[1] = {GL_COLOR_ATTACHMENT0};
     glDrawBuffers(1,  attachments1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0,0,512,512);
     //+X
-    m_backTexture->bind();
-    m_backTexture->load(image);
-    //glBindTexture(GL_TEXTURE_2D, backFBO);
+    //m_backTexture->bind();
+    //m_backTexture->load(image);
+    glBindTexture(GL_TEXTURE_2D, backFBO);
     m_cubefaceprogram->bind();
-    m_cubeface->create( m_ssbb[0]/2.0f,m_ssbb[1] / 2.0f,
-                        m_ssbb[0],m_ssbb[1],
-                        m_ssbb[0],m_ssbb[3],m_ssbb[0] / 2.0f,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ));
+    m_cubeface->create(
+            m_ssbb[2],m_ssbb[3],
+            m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
+            m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,m_ssbb[1] / 2.0f,
+            m_ssbb[2],m_ssbb[1]
+            );
+
     m_cubefaceprogram->setUniformValue("screenTexture", 0);
     m_cubeface->draw();
     m_cubefaceprogram->release();
-    m_backTexture->unbind();
+    //m_backTexture->unbind();
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_X, texFBO, 0);
     //-X
-    m_backTexture->bind();
-    m_backTexture->load(image);
-    //glBindTexture(GL_TEXTURE_2D, backFBO);
+    //m_backTexture->bind();
+    //m_backTexture->load(image);
+    glBindTexture(GL_TEXTURE_2D, backFBO);
     m_cubefaceprogram->bind();
-    m_cubeface->create(m_ssbb[2],m_ssbb[1],
-                    m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,m_ssbb[1] / 2.0f,
-                    m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
-                    m_ssbb[2],m_ssbb[3]);
+    m_cubeface->create(
+            m_ssbb[0] / 2.0f,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
+            m_ssbb[0],m_ssbb[3],
+            m_ssbb[0],m_ssbb[1],
+            m_ssbb[0]/2.0f,m_ssbb[1] / 2.0f
+            );
     m_cubefaceprogram->setUniformValue("screenTexture", 0);
     m_cubeface->draw();
     m_cubefaceprogram->release();
-    m_backTexture->unbind();
+    //m_backTexture->unbind();
 
 
 //    //+Y
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, texFBO, 0);
-    m_backTexture->bind();
-    m_backTexture->load(image);
-    //glBindTexture(GL_TEXTURE_2D, backFBO);
+    //m_backTexture->bind();
+    //m_backTexture->load(image);
+    glBindTexture(GL_TEXTURE_2D, backFBO);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     m_cubefaceprogram->bind();
-    m_cubeface->create( m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,( m_ssbb[1] / 2.0f ),
-                        m_ssbb[0]/2.0f,m_ssbb[1] / 2.0f,
-                        m_ssbb[0],m_ssbb[1],
-                        m_ssbb[2],m_ssbb[1]
-                        );
+    m_cubeface->create(
+            m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ),m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
+            m_ssbb[0] / 2.0f,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
+            m_ssbb[0],m_ssbb[3],
+            m_ssbb[2],m_ssbb[3]
+            );
     m_cubefaceprogram->setUniformValue("screenTexture", 0);
     m_cubeface->draw();
     m_cubefaceprogram->release();
-    m_backTexture->unbind();
+   // m_backTexture->unbind();
 //
 //    //-Y
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, texFBO, 0);
-    m_backTexture->bind();
-    m_backTexture->load(image);
-    //glBindTexture(GL_TEXTURE_2D, backFBO);
+    //m_backTexture->bind();
+    //m_backTexture->load(image);
+    glBindTexture(GL_TEXTURE_2D, backFBO);
     m_cubefaceprogram->bind();
-    m_cubeface->create( m_ssbb[2],m_ssbb[3],
-                        m_ssbb[0],m_ssbb[3],
-                        m_ssbb[0] / 2.0f,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
-                        m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ),m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f )
+    m_cubeface->create(
+                        m_ssbb[2],m_ssbb[1],
+                        m_ssbb[0],m_ssbb[1],
+                        m_ssbb[0]/2.0f,m_ssbb[1] / 2.0f,
+                        m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,( m_ssbb[1] / 2.0f )
                         );
     m_cubefaceprogram->setUniformValue("screenTexture", 0);
     m_cubeface->draw();
     m_cubefaceprogram->release();
     m_backTexture->unbind();
-//    //+Z
+    //+Z
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, texFBO, 0);
-    m_backTexture->bind();
-    m_backTexture->load(image);
-    //glBindTexture(GL_TEXTURE_2D, backFBO);
+    //m_backTexture->bind();
+    //m_backTexture->load(image);
+    glBindTexture(GL_TEXTURE_2D, backFBO);
     m_cubefaceprogram->bind();
-    m_cubeface->create( m_ssbb[0],m_ssbb[1],
-                        m_ssbb[2],m_ssbb[1],
+    m_cubeface->create( m_ssbb[0],m_ssbb[3],
                         m_ssbb[2],m_ssbb[3],
-                        m_ssbb[0],m_ssbb[3]);
+                        m_ssbb[2],m_ssbb[1],
+                        m_ssbb[0],m_ssbb[1]);
     m_cubefaceprogram->setUniformValue("screenTexture", 0);
     m_cubeface->draw();
     m_cubefaceprogram->release();
-    m_backTexture->unbind();
+    //m_backTexture->unbind();
 //    //-Z
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, texFBO, 0);
     m_backTexture->bind();
     m_backTexture->load(image);
-    //glBindTexture(GL_TEXTURE_2D, backFBO);
+    glBindTexture(GL_TEXTURE_2D, backFBO);
     m_cubefaceprogram->bind();
-    m_cubeface->create(m_ssbb[2],m_ssbb[1],
-                    m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
-                    m_ssbb[2] + ( ( 1.0f - m_ssbb[2] ) / 2.0f ) ,m_ssbb[1] / 2.0f,
-                    m_ssbb[2],m_ssbb[3]);
+    m_cubeface->create(
+            m_ssbb[0] / 2.0f,m_ssbb[3] + ( ( 1.0f - m_ssbb[3] ) / 2.0f ),
+            m_ssbb[0],m_ssbb[3],
+            m_ssbb[0],m_ssbb[1],
+            m_ssbb[0]/2.0f,m_ssbb[1] / 2.0f
+            );
     m_cubefaceprogram->setUniformValue("screenTexture", 0);
     m_cubeface->draw();
     m_cubefaceprogram->release();
