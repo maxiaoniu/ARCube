@@ -571,7 +571,7 @@ void Window::paintGL()
     glDrawBuffers(1,  attachments);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0,0,1280,720);
-
+    //glViewport(0,0,1280*2,720*2);
     m_backTexture->bind();
     m_backTexture->load(image);
     m_backprogram->bind();
